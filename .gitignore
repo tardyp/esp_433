@@ -1,0 +1,8 @@
+.vscode
+*.o
+build
+keys
+wifi_secrets.h
+.DS_Store
+*.out
+libraries
