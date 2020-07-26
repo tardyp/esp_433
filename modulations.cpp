@@ -5,13 +5,42 @@
 namespace cc1100 {
     Modulation *Modulation::make(String definition_string)
     {
-        Modulation **m;
-        for(m = modulations; m[0]; m++){
-            if (m[0]->name == "OOK_PWM"){
-                return m[0];
+        Modulation *m=NULL;
+        int key_pos=0, value_pos;
+        String value, key;
+        while(key_pos < definition_string.length())
+        {
+            value_pos = definition_string.indexOf('=', key_pos);
+            if (value_pos < 0)
+                return NULL;
+            key = definition_string.substring(key_pos, value_pos);
+            key_pos = definition_string.indexOf(',', value_pos);
+            if (key_pos < 0)
+                key_pos = definition_string.length();
+            value = definition_string.substring(value_pos+1, key_pos);
+            key_pos +=1;
+            if (key == "m"){
+                Modulation **m_it;
+                for(m_it = modulations; m_it[0]; m_it++){
+                    if (m_it[0]->name == value){
+                        printf("found %s\n", value.c_str());
+                        m = m_it[0];
+                        break;
+                    }
+                }
+                if(m==NULL){
+                    Serial.print(String("Modulation: ") + value + " not supported\n");
+                    return NULL;
+                }
+            } else {
+                if(m==NULL){
+                    Serial.print(String("Modulation must be defined as first param!\n"));
+                    return NULL;
+                }
+                m->set_param(key, value);
             }
         }
-        return NULL;
+        return m;
     }
 
     class OOK_PWM: public Modulation {
@@ -26,7 +55,7 @@ namespace cc1100 {
     };
 
     void OOK_PWM::set_param(String k, String v){
-
+        Serial.print(k + " " + v + "\n");
     }
     void OOK_PWM::start_send(CC1100 &cc){
 
