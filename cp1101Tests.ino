@@ -22,10 +22,16 @@ cc1100::CC1100 cc868(spi868);
 test(ook_pwm_modulation) {
   cc1100::Modulation *m = cc1100::Modulation::make("m=OOK_PWM,s=426,l=852,r=16000,g=3000,t=0,y=6,rows=2");
   assertNotEqual((void*)m, (void*)0);
-  m = cc1100::Modulation::make("m=unknown_mod,s=426,l=852,r=16000,g=3000,t=0,y=6,rows=2");
-  assertEqual((void*)m, (void*)0);
+  assertEqual(m->_short, 426);
+  assertEqual(m->_long, 852);
+  assertEqual(m->_reset, 16000);
+  assertEqual(m->_gap, 3000);
+  assertEqual(m->_tolerance, 0);
+  assertEqual(m->_sync, 6);
   m = cc1100::Modulation::make("s=426,l=852,r=16000,m=OOK_PWM,g=3000,t=0,y=6,rows=2");
   assertNotEqual((void*)m, (void*)0);
+  m = cc1100::Modulation::make("m=unknown_mod,s=426,l=852,r=16000,g=3000,t=0,y=6,rows=2");
+  assertEqual((void*)m, (void*)0);
 }
 void setup() {
 }

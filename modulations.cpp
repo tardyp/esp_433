@@ -56,7 +56,21 @@ namespace cc1100
         }
         return m;
     }
-
+    void Modulation::set_param(String k, String v)
+    {
+        if (k == "short" || k == "s")
+            this->_short = v.toInt();
+        else if (k == "long" || k == "l")
+            this->_long = v.toInt();
+        else if (k == "sync" || k == "y")
+            this->_sync = v.toInt();
+        else if (k == "reset" || k == "r")
+            this->_reset = v.toInt();
+        else if (k == "gap" || k == "g")
+            this->_gap = v.toInt();
+        else if (k == "tolerance" || k == "t")
+            this->_tolerance = v.toInt();
+    }
     class OOK_PWM : public Modulation
     {
     public:
@@ -64,16 +78,11 @@ namespace cc1100
         {
             this->name = name;
         };
-        virtual void set_param(String k, String v);
         virtual void start_send(CC1100 &cc);
         virtual int next_buffer(u_int8_t *buffer, int len);
         virtual void end_send(CC1100 &cc);
     };
 
-    void OOK_PWM::set_param(String k, String v)
-    {
-        Serial.print(k + " " + v + "\n");
-    }
     void OOK_PWM::start_send(CC1100 &cc)
     {
     }

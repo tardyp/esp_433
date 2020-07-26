@@ -8,11 +8,17 @@ namespace cc1100 {
         public:
         String name;
         int frequency;
+        int _short;
+        int _long;
+        int _sync;
+        int _reset;
+        int _gap;
+        int _tolerance;
         /* set parameter from http or other protocol
             parameters shall be as specified in https://triq.org/rtl_433/OPERATION.html#flex-decoder
             so that we can reuse decoders from rtl_433
         */
-        virtual void set_param(String k, String v) = 0;
+        virtual void set_param(String k, String v);
 
         /* Following set of methods are programing the CC1101 for the requested protocol */
         virtual void start_send(CC1100 &cc) = 0;
