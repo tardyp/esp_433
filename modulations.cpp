@@ -20,6 +20,9 @@ namespace cc1100 {
             value = definition_string.substring(value_pos+1, key_pos);
             key_pos +=1;
             if (key == "m"){
+                if (m != NULL) {
+                    continue;
+                }
                 Modulation **m_it;
                 for(m_it = modulations; m_it[0]; m_it++){
                     if (m_it[0]->name == value){
@@ -32,10 +35,12 @@ namespace cc1100 {
                     Serial.print(String("Modulation: ") + value + " not supported\n");
                     return NULL;
                 }
+                /* restart scan from start once we got our modulation type */
+                key_pos = 0;
             } else {
                 if(m==NULL){
-                    Serial.print(String("Modulation must be defined as first param!\n"));
-                    return NULL;
+                    /* continue scan until we get our modulation type */
+                    continue;
                 }
                 m->set_param(key, value);
             }

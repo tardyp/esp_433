@@ -24,8 +24,8 @@ test(ook_pwm_modulation) {
   assertNotEqual((void*)m, (void*)0);
   m = cc1100::Modulation::make("m=unknown_mod,s=426,l=852,r=16000,g=3000,t=0,y=6,rows=2");
   assertEqual((void*)m, (void*)0);
-  m = cc1100::Modulation::make("s=426,m=OOK_PWM,s=426,l=852,r=16000,g=3000,t=0,y=6,rows=2");
-  assertEqual((void*)m, (void*)0);
+  m = cc1100::Modulation::make("s=426,l=852,r=16000,m=OOK_PWM,g=3000,t=0,y=6,rows=2");
+  assertNotEqual((void*)m, (void*)0);
 }
 void setup() {
 }
