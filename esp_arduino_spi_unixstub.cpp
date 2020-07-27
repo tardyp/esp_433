@@ -3,7 +3,7 @@
 #define PIN_SPI_MISO (12)
 
 namespace cc1100 {
-
+    static u_int8_t regs[256];
     void ESPArduinoSPI::begin(uint8_t pin) {
     }
     void ESPArduinoSPI::beginTransaction() {
@@ -20,13 +20,14 @@ namespace cc1100 {
 
     uint8_t ESPArduinoSPI::read_register(uint8_t instr)
     {
-            return 0;
+        return regs[instr];
     }
     void ESPArduinoSPI::read_burst(uint8_t instr, uint8_t *pArr, uint8_t length)
     {
     }
     void ESPArduinoSPI::write_register(uint8_t instr, uint8_t value)
     {
+        regs[instr] = value;
     }
     void ESPArduinoSPI::write_burst(uint8_t instr, uint8_t *pArr, uint8_t length)
     {

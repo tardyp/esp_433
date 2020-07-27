@@ -8,12 +8,12 @@ namespace cc1100 {
         public:
         String name;
         int frequency;
-        int _short;
-        int _long;
-        int _sync;
-        int _reset;
-        int _gap;
-        int _tolerance;
+        u_int32_t _short;
+        u_int32_t _long;
+        u_int32_t _sync;
+        u_int32_t _reset;
+        u_int32_t _gap;
+        u_int32_t _tolerance;
         /* set parameter from http or other protocol
             parameters shall be as specified in https://triq.org/rtl_433/OPERATION.html#flex-decoder
             so that we can reuse decoders from rtl_433

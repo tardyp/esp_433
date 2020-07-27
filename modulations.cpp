@@ -1,9 +1,32 @@
 #include <Arduino.h>
 
 #include "modulations.h"
+const u_int32_t F_OSC = 26000000;
 
 namespace cc1100
 {
+    int log2(int x)
+    {
+        /* find the highest bit */
+        int r = -1;
+        while (x)
+        {
+            x >>= 1;
+            r++;
+        }
+        return r;
+    }
+    int hcf(int a, int b)
+    {
+        int r;
+        while (b != 0)
+        {
+            r = a % b;
+            a = b;
+            b = r;
+        }
+        return a;
+    }
     Modulation *Modulation::make(String definition_string)
     {
         Modulation *m = NULL;
@@ -85,6 +108,20 @@ namespace cc1100
 
     void OOK_PWM::start_send(CC1100 &cc)
     {
+        /* calculate required baudrate */
+        u_int32_t rate = 1000000 / hcf(_short, _long);
+
+        /* magical formula as per datasheet page 35 */
+        u_int8_t DRATE_E = log2((rate << 20) / F_OSC);
+        /* we need to hack a bit the calculation to fit in 32bit */
+        /* probably more optim can be found with more thought */
+        int DRATE_M = ((rate << (18 - DRATE_E)) / (F_OSC >> 10)) - 256;
+        if (DRATE_M > 255)
+        {
+            DRATE_M = 0;
+            DRATE_E++;
+        }
+        cc.set_datarate(0x80 | DRATE_E, DRATE_M, 0);
     }
     int OOK_PWM::next_buffer(u_int8_t *buffer, int len)
     {
