@@ -7,7 +7,7 @@ namespace cc1100
 {
     int log2(int x)
     {
-        /* find the highest bit */
+        /* find the highest bit of a value (integer version of log2) */
         int r = -1;
         while (x)
         {
@@ -18,6 +18,7 @@ namespace cc1100
     }
     int hcf(int a, int b)
     {
+        /* finds the highest common factor */
         int r;
         while (b != 0)
         {
@@ -26,6 +27,16 @@ namespace cc1100
             b = r;
         }
         return a;
+    }
+    uint8_t hex2i(uint8_t v)
+    {
+        if ((v >= '0') && (v <= '9'))
+            return v - '0';
+        if ((v >= 'A') && (v <= 'F'))
+            return v - 'A' + 0xA;
+        if ((v >= 'a') && (v <= 'f'))
+            return v - 'a' + 0xA;
+        return 0;
     }
     Modulation *Modulation::make(String definition_string)
     {
@@ -93,10 +104,20 @@ namespace cc1100
             this->_gap = v.toInt();
         else if (k == "tolerance" || k == "t")
             this->_tolerance = v.toInt();
+        else if (k == "data")
+            this->_data = v;
     }
     class OOK_PWM : public Modulation
     {
     public:
+        u_int32_t short_bit;
+        u_int32_t long_bit;
+        u_int32_t gap_bit;
+        u_int32_t data_index;
+        u_int8_t data_bit;
+        u_int8_t bit_to_write;
+        u_int32_t bit_to_write_number;
+
         inline OOK_PWM(String name)
         {
             this->name = name;
@@ -104,14 +125,20 @@ namespace cc1100
         virtual void start_send(CC1100 &cc);
         virtual int next_buffer(u_int8_t *buffer, int len);
         virtual void end_send(CC1100 &cc);
+        virtual bool compute_next_bit(void);
     };
 
     void OOK_PWM::start_send(CC1100 &cc)
     {
-        /* calculate required baudrate */
-        u_int32_t rate = 1000000 / hcf(_short, _long);
+        /* calculate required baudrate as the hcf of _short and long*/
+        u_int32_t time_per_bit = hcf(_short, _long);
+        short_bit = _short / time_per_bit;
+        long_bit = _long / time_per_bit;
+        gap_bit = _gap / time_per_bit;
 
-        /* magical formula as per datasheet page 35 */
+        u_int32_t rate = 1000000 / time_per_bit;
+
+        /* magical formula as per cc1101 datasheet page 35 */
         u_int8_t DRATE_E = log2((rate << 20) / F_OSC);
         /* we need to hack a bit the calculation to fit in 32bit */
         /* probably more optim can be found with more thought */
@@ -122,9 +149,93 @@ namespace cc1100
             DRATE_E++;
         }
         cc.set_datarate(0x80 | DRATE_E, DRATE_M, 0);
+        data_index = 0;
+        data_bit = 0;
+        bit_to_write = 0;
+        bit_to_write_number = 0;
+    }
+    bool OOK_PWM::compute_next_bit(void)
+    {
+        if (bit_to_write == 0)
+        {
+            /* data is encoded as hex nibbles */
+            if (data_index >= _data.length())
+                return false;
+            u_int8_t v = _data.charAt(data_index);
+            if (v == ',')
+            {
+                bit_to_write = 0;
+                bit_to_write_number = gap_bit;
+                data_index += 1;
+                return true;
+            }
+            v = hex2i(v);
+            v = (v >> (3 - data_bit)) & 1;
+            bit_to_write = 1;
+            bit_to_write_number = v ? long_bit : short_bit;
+            data_bit += 1;
+            if (data_bit >= 4)
+            {
+                data_bit = 0;
+                data_index += 1;
+            }
+        }
+        else
+        {
+            bit_to_write = 0;
+            bit_to_write_number = short_bit;
+        }
+        return true;
     }
     int OOK_PWM::next_buffer(u_int8_t *buffer, int len)
     {
+        int written = 0;
+        int bit = 0;
+        u_int8_t cur_byte = 0;
+        while (len)
+        {
+            /* first we write to buffer, we may have some remain from previous call */
+            if (bit_to_write_number >= 8 && bit == 0)
+            { /* we write a complete byte */
+                *buffer = bit_to_write ? 0xff : 0;
+                buffer++;
+                len--;
+                written++;
+                bit_to_write_number -= 8;
+            }
+            else if (bit_to_write_number >= 8 - bit)
+            { /* we finish a byte */
+
+                /* if bit != 0 we assume *buffer is already initialized */
+                if (bit_to_write)
+                    *buffer |= (0xff >> bit);
+                buffer++;
+                len--;
+                bit_to_write_number -= 8 - bit;
+                bit = 0;
+            }
+            else if (bit_to_write_number > 0)
+            { /* we write at begining or middle of the byte */
+                /* initialize current byte to 0s if we just start this byte*/
+                if (bit == 0)
+                {
+                    written++;
+                    *buffer = 0;
+                }
+                /* CC1101 transmits MSB first */
+                if (bit_to_write)
+                {
+                    u_int8_t mask = 0xff << (8 - bit_to_write_number);
+                    *buffer |= mask >> bit;
+                }
+                bit += bit_to_write_number;
+                bit_to_write_number = 0;
+            }
+            if (bit_to_write_number == 0)
+                if (!compute_next_bit())
+                    break;
+        }
+        return written;
     }
     void OOK_PWM::end_send(CC1100 &cc)
     {

@@ -14,6 +14,7 @@ namespace cc1100 {
         u_int32_t _reset;
         u_int32_t _gap;
         u_int32_t _tolerance;
+        String _data; /* hex encoded data to send */
         /* set parameter from http or other protocol
             parameters shall be as specified in https://triq.org/rtl_433/OPERATION.html#flex-decoder
             so that we can reuse decoders from rtl_433

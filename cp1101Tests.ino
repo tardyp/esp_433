@@ -42,6 +42,45 @@ test(ook_pwm_modulation)
   int bit_duration = 1000000 / drate;
   assertEqual(bit_duration, 426); /* well, that is the same as _short! */
 }
+namespace cc1100 {
+    uint8_t hex2i(uint8_t v);
+}
+test(hex2i)
+{
+  assertEqual((int)cc1100::hex2i('a'), 0xa);
+  assertEqual((int)cc1100::hex2i('1'), 0x1);
+  assertEqual((int)cc1100::hex2i('2'), 0x2);
+  assertEqual((int)cc1100::hex2i('B'), 0xb);
+}
+
+test(ook_pwm_modulation_data)
+{
+	u_int8_t buffer[16];
+	int written;
+  cc1100::Modulation *m;
+	m = cc1100::Modulation::make("m=OOK_PWM,s=1,l=2,r=10,g=3,t=0,y=6,data=0");
+  m->start_send(cc433);
+  written = m->next_buffer(buffer, 16);
+  assertEqual(written, 1);
+  assertEqual(buffer[0], 0b10101010);
+
+  m = cc1100::Modulation::make("m=OOK_PWM,s=1,l=2,r=10,g=3,t=0,y=6,data=1");
+  m->start_send(cc433);
+  written = m->next_buffer(buffer, 16);
+  assertEqual(written, 2);
+  assertEqual(buffer[0], 0b10101011);
+  assertEqual(buffer[1], 0b0);
+
+ //TBD
+  // m = cc1100::Modulation::make("m=OOK_PWM,s=1,l=2,r=10,g=3,t=0,y=6,data=11");
+  // m->start_send(cc433);
+  // written = m->next_buffer(buffer, 16);
+  // assertEqual(written, 3);
+  // assertEqual(buffer[0], 0b10101011);
+  // assertEqual(buffer[1], 0b01010101);
+  // assertEqual(buffer[1], 0b10000000);
+
+}
 void setup()
 {
 }
