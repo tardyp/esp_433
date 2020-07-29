@@ -162,7 +162,7 @@ namespace cc1100
             if (data_index >= _data.length())
                 return false;
             u_int8_t v = _data.charAt(data_index);
-            if (v == ',')
+            if (v == ':')
             {
                 bit_to_write = 0;
                 bit_to_write_number = gap_bit;

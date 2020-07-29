@@ -68,17 +68,33 @@ test(ook_pwm_modulation_data)
   m->start_send(cc433);
   written = m->next_buffer(buffer, 16);
   assertEqual(written, 2);
-  assertEqual(buffer[0], 0b10101011);
+  assertEqual(buffer[0], 0b10101011); /* last  bit it double 1 */
   assertEqual(buffer[1], 0b0);
 
- //TBD
-  // m = cc1100::Modulation::make("m=OOK_PWM,s=1,l=2,r=10,g=3,t=0,y=6,data=11");
-  // m->start_send(cc433);
-  // written = m->next_buffer(buffer, 16);
-  // assertEqual(written, 3);
-  // assertEqual(buffer[0], 0b10101011);
-  // assertEqual(buffer[1], 0b01010101);
-  // assertEqual(buffer[1], 0b10000000);
+  m = cc1100::Modulation::make("m=OOK_PWM,s=1,l=2,r=10,g=3,t=0,y=6,data=11");
+  m->start_send(cc433);
+  written = m->next_buffer(buffer, 16);
+  assertEqual(written, 3);
+  assertEqual(buffer[0], 0b10101011);
+  assertEqual(buffer[1], 0b01010101);
+  assertEqual(buffer[2], 0b10000000);
+
+  m = cc1100::Modulation::make("m=OOK_PWM,s=1,l=15,r=10,g=3,t=0,y=6,data=1");
+  m->start_send(cc433);
+  written = m->next_buffer(buffer, 16);
+  assertEqual(written, 3);
+  assertEqual(buffer[0], 0b10101011);
+  assertEqual(buffer[1], 0b11111111);
+	assertEqual(buffer[2], 0b11111000);
+
+  m = cc1100::Modulation::make("m=OOK_PWM,s=1,l=2,r=10,g=10,t=0,y=6,data=1:1");
+  m->start_send(cc433);
+  written = m->next_buffer(buffer, 16);
+  assertEqual(written, 4);
+  assertEqual(buffer[0], 0b10101011);
+  assertEqual(buffer[1], 0b00000000);
+	assertEqual(buffer[2], 0b00010101);
+	assertEqual(buffer[3], 0b01100000);
 
 }
 void setup()
