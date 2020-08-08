@@ -3,7 +3,7 @@
 #define PIN_SPI_MISO (12)
 
 namespace cc1100 {
-    static u_int8_t regs[256];
+    static uint8_t regs[256];
     void ESPArduinoSPI::begin(uint8_t pin) {
     }
     void ESPArduinoSPI::beginTransaction() {

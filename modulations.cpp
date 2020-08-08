@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 #include "modulations.h"
-const u_int32_t F_OSC = 26000000;
+const uint32_t F_OSC = 26000000;
 
 namespace cc1100
 {
@@ -65,14 +65,15 @@ namespace cc1100
                 {
                     if (m_it[0]->name == value)
                     {
-                        printf("found %s\n", value.c_str());
+                        printf("found %s\r\n", value.c_str());
                         m = m_it[0];
+                        m->fill_default_values();
                         break;
                     }
                 }
                 if (m == NULL)
                 {
-                    Serial.print(String("Modulation: ") + value + " not supported\n");
+                    Serial.print(String("Modulation: ") + value + " not supported\r\n");
                     return NULL;
                 }
                 /* restart scan from start once we got our modulation type */
@@ -89,6 +90,16 @@ namespace cc1100
             }
         }
         return m;
+    }
+    void Modulation::fill_default_values()
+    {
+        this->_short = 100;
+        this->_long = 200;
+        this->_sync = 1;
+        this->_reset = 2000;
+        this->_gap = 400;
+        this->_tolerance = 1;
+        this->_data = "";
     }
     void Modulation::set_param(String k, String v)
     {
@@ -107,23 +118,68 @@ namespace cc1100
         else if (k == "data")
             this->_data = v;
     }
+#define BURST_SIZE (FIFOBUFFER >> 2)
+    bool Modulation::loop(CC1100 &cc)
+    {
+        uint8_t remain, to_send;
+        uint8_t buf[BURST_SIZE];
+        if (state == STARTING)
+        {
+            cc.sidle(); //sets to idle first.
+        }
+        else
+        {
+            /* fifo management */
+            remain = cc.tx_fifo_bytes(); //reads the number of bytes in TXFIFO
+            if (state == SENDING)
+            {
+                if (remain > (FIFOBUFFER >> 1))
+                    /* need to wait a bit before next fifo fill */
+                    return false;
+            }
+            else if (state == FINISHING)
+            {
+                if (remain == 0)
+                {
+                    cc.sidle(); //sets to idle when everything's done.
+                    return true;
+                }
+                return false;
+            }
+        }
+        /* half fill the fifo */
+        to_send = BURST_SIZE;
+        to_send = next_buffer(buf, to_send);
+        cc.tx_fifo_fill(buf, to_send);
+        if (state == STARTING)
+        {
+            cc.start_transmit(); //start sending the data over air
+            state = SENDING;
+        }
+        if (to_send < BURST_SIZE)
+        {
+            state = FINISHING;
+        }
+        return false;
+    }
+
     class OOK_PWM : public Modulation
     {
     public:
-        u_int32_t short_bit;
-        u_int32_t long_bit;
-        u_int32_t gap_bit;
-        u_int32_t data_index;
-        u_int8_t data_bit;
-        u_int8_t bit_to_write;
-        u_int32_t bit_to_write_number;
+        uint32_t short_bit;
+        uint32_t long_bit;
+        uint32_t gap_bit;
+        uint32_t data_index;
+        uint8_t data_bit;
+        uint8_t bit_to_write;
+        uint32_t bit_to_write_number;
 
         inline OOK_PWM(String name)
         {
             this->name = name;
         };
         virtual void start_send(CC1100 &cc);
-        virtual int next_buffer(u_int8_t *buffer, int len);
+        virtual int next_buffer(uint8_t *buffer, int len);
         virtual void end_send(CC1100 &cc);
         virtual bool compute_next_bit(void);
     };
@@ -131,18 +187,19 @@ namespace cc1100
     void OOK_PWM::start_send(CC1100 &cc)
     {
         /* calculate required baudrate as the hcf of _short and long*/
-        u_int32_t time_per_bit = hcf(_short, _long);
+        if (_tolerance == 0)
+            _tolerance = 1;
+        uint32_t time_per_bit = hcf(_short, _long) / _tolerance;
         short_bit = _short / time_per_bit;
         long_bit = _long / time_per_bit;
         gap_bit = _gap / time_per_bit;
-
-        u_int32_t rate = 1000000 / time_per_bit;
+        uint32_t rate = 1000000 / time_per_bit;
 
         /* magical formula as per cc1101 datasheet page 35 */
-        u_int8_t DRATE_E = log2((rate << 20) / F_OSC);
+        uint8_t DRATE_E = log2((rate << 12) / (F_OSC >> 8));
         /* we need to hack a bit the calculation to fit in 32bit */
         /* probably more optim can be found with more thought */
-        int DRATE_M = ((rate << (18 - DRATE_E)) / (F_OSC >> 10)) - 256;
+        uint32_t DRATE_M = ((rate << (18 - DRATE_E)) / (F_OSC >> 10)) - 256;
         if (DRATE_M > 255)
         {
             DRATE_M = 0;
@@ -153,6 +210,7 @@ namespace cc1100
         data_bit = 0;
         bit_to_write = 0;
         bit_to_write_number = 0;
+        state = STARTING;
     }
     bool OOK_PWM::compute_next_bit(void)
     {
@@ -172,7 +230,7 @@ namespace cc1100
             v = hex2i(v);
             v = (v >> (3 - data_bit)) & 1;
             bit_to_write = 1;
-            bit_to_write_number = v ? long_bit : short_bit;
+            bit_to_write_number = v ? short_bit : long_bit;
             data_bit += 1;
             if (data_bit >= 4)
             {
@@ -187,11 +245,11 @@ namespace cc1100
         }
         return true;
     }
-    int OOK_PWM::next_buffer(u_int8_t *buffer, int len)
+    int OOK_PWM::next_buffer(uint8_t *buffer, int len)
     {
         int written = 0;
         int bit = 0;
-        u_int8_t cur_byte = 0;
+        uint8_t cur_byte = 0;
         while (len)
         {
             /* first we write to buffer, we may have some remain from previous call */
@@ -234,6 +292,7 @@ namespace cc1100
             if (bit_to_write_number == 0)
                 if (!compute_next_bit())
                     break;
+                printf("bit_to_write_number: %d bit_to_write %d\n", bit_to_write_number, bit_to_write);
         }
         return written;
     }

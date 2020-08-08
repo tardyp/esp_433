@@ -18,6 +18,7 @@
 #include "esp_arduino_spi.h"
 #include "wifi_secrets.h"
 #include <ArduinoOTA.h>
+#include "modulations.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 1
@@ -35,8 +36,7 @@ typedef struct {
   uint8_t data[];
 } data_to_send_t;
 
-data_to_send_t *data_to_send;
-
+cc1100::Modulation *current_modulation;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -58,10 +58,11 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   AsyncCallbackWebHandler &handler = server.on("/send", [](AsyncWebServerRequest *request){
-    if (data_to_send == NULL) {
-      data_to_send = (data_to_send_t*)request->_tempObject;
+    if (current_modulation == NULL) {
+      current_modulation = cc1100::Modulation::make((char *)request->_tempObject);
+      current_modulation->start_send(cc433);
       request->_tempObject = NULL;
-      request->send(200, "text/plain", String(data_to_send->len));
+      request->send(200, "text/plain", "started");
       return;
     }
     request->send(400, "text/plain", "already sending");
@@ -69,15 +70,21 @@ void setup() {
   handler.onBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
 
     if (request->_tempObject == NULL){
-      request->_tempObject = calloc(total + sizeof(long), 1);
+      request->_tempObject = calloc(total + 1, 1);
       if (request->_tempObject == NULL){
         return;
       }
-      *((long*)request->_tempObject) = total;
+      ((char*)request->_tempObject)[total] = 0;
     }
-    memcpy(request->_tempObject + sizeof(long) + index, data, len);
+    memcpy(request->_tempObject + index, data, len);
   });
-
+  server.on("/r", [](AsyncWebServerRequest *request){
+    long r = strtol(request->arg("r").c_str(), 0, 16);
+    uint8_t res = spi433.read_register(r);
+    char buf[100];
+    snprintf(buf, 100, "%02x",res & 0xff);
+    request->send(200, "text/plain", buf);
+  });
   server.begin();
 
   // init CC1101 RF-module and get My_address from EEPROM
@@ -106,10 +113,9 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
-  if (data_to_send){
-    DBG("sending %d bytes\n", data_to_send->len);
-    cc433.tx_raw_transmit(data_to_send->data, data_to_send->len);
-    data_to_send = NULL;
+  if (current_modulation){
+    while (!current_modulation->loop(cc433));
+    current_modulation = NULL;
   }
   ArduinoOTA.handle() ;                                 // Check for OTA
 }
