@@ -363,6 +363,16 @@ uint8_t CC1100::rx_payload_burst(uint8_t rxbuffer[], uint8_t &pktlen)
     return res;
 }
 
+uint8_t CC1100::tx_fifo_bytes(){
+    return spi.read_register(TXBYTES)&0x7f; //reads the number of bytes in TXFIFO
+}
+
+void CC1100::tx_fifo_fill(uint8_t *txbuffer, uint8_t length){
+    spi.write_burst(TXFIFO_BURST, txbuffer, length);
+}
+void CC1100::start_transmit(void){
+    spi.write_strobe(STX);                //start sending the data over air
+}
 /* transmit large buffer via infinite packet feature */
 uint8_t CC1100::tx_raw_transmit(uint8_t *txbuffer, uint8_t length)
 {
@@ -375,19 +385,19 @@ uint8_t CC1100::tx_raw_transmit(uint8_t *txbuffer, uint8_t length)
         if (to_send > length)
             to_send = length;
 
-        spi.write_burst(TXFIFO_BURST, txbuffer, to_send);
+        tx_fifo_fill(txbuffer, to_send);
         txbuffer += to_send;
         length -= to_send;
         if (!started){
-            spi.write_strobe(STX);                //start sending the data over air
+            start_transmit();
         }
         // watch the FIFO until it is half empty
         do {
-            remain = spi.read_register(TXBYTES)&0x7f; //reads the number of bytes in TXFIFO
+            remain = tx_fifo_bytes(); //reads the number of bytes in TXFIFO
         } while (remain > (FIFOBUFFER>>1) );
     }
     do {
-        remain = spi.read_register(TXBYTES)&0x7f; //reads the number of bytes in TXFIFO
+        remain = tx_fifo_bytes(); //reads the number of bytes in TXFIFO
     } while (remain > 0);
 
     sidle();                              //sets to idle when everything's done.

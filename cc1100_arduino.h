@@ -192,6 +192,10 @@ class CC1100
         void rx_fifo_erase(uint8_t *rxbuffer);
         void tx_fifo_erase(uint8_t *txbuffer);
 
+        uint8_t tx_fifo_bytes();
+        void tx_fifo_fill(uint8_t *txbuffer, uint8_t length);
+        void start_transmit();
+
         uint8_t tx_raw_transmit(uint8_t *txbuffer, uint8_t length);
 
         /* txbuffer payload starts at byte 3! [0] is len, [1] is srcaddr, [2] is dstaddr */
