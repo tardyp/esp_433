@@ -99,6 +99,19 @@ test(ook_pwm_modulation_data)
   assertEqual(buffer[2], 0b00010101);
   assertEqual(buffer[3], 0b01100000);
 }
+test(ook_pwm_test_modulation_data)
+{
+  uint8_t buffer[15];
+  int written = 15;
+  cc1100::Modulation *m;
+  m = cc1100::Modulation::make("m=OOK_TEST,s=1,l=2,r=10,g=10,t=1,y=6");
+  m->start_send(cc433);
+  while(written == 15) {
+    written = m->next_buffer(buffer, 15);
+  }
+  assertEqual(written, 1);
+
+}
 namespace cc1100
 {
   class FakeModulation : public Modulation

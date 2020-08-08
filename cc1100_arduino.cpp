@@ -46,6 +46,8 @@ extern uint8_t patable_power_315[];
 extern uint8_t patable_power_433[];
 extern uint8_t patable_power_868[];
 extern uint8_t patable_power_915[];
+extern uint8_t patable_power_433_ook[];
+extern uint8_t patable_power_868_ook[];
 
 void CC1100::reset(void)                  // reset defined in cc1100 datasheet
 {
@@ -140,7 +142,7 @@ uint8_t CC1100::begin(int gdo0, int gdo2, uint8_t freq_select, uint8_t mode_sele
     set_mode(mode_select);
 
     //set ISM band
-    set_ISM(freq_select);
+    set_ISM(freq_select, mode_select>=6);
 
     //set channel
     set_channel(channel_select);
@@ -664,7 +666,7 @@ void CC1100::set_mode(uint8_t mode)
 }
 
 //---------[set ISM Band 1=315MHz; 2=433MHz; 3=868MHz; 4=915MHz]----------------
-void CC1100::set_ISM(uint8_t ism_freq)
+void CC1100::set_ISM(uint8_t ism_freq, uint8_t is_ook)
 {
     uint8_t freq2, freq1, freq0;
     uint8_t Patable[8];
@@ -681,13 +683,20 @@ void CC1100::set_ISM(uint8_t ism_freq)
                     freq2=0x10;
                     freq1=0xB0;
                     freq0=0x71;
-                    eeprom_read_block(Patable,patable_power_433,8);
+                    if (is_ook)
+                        eeprom_read_block(Patable,patable_power_433_ook,8);
+                    else
+                        eeprom_read_block(Patable,patable_power_433,8);
+
                     break;
         case 0x03:                                                          //868.3MHz
                     freq2=0x21;
                     freq1=0x65;
                     freq0=0x6A;
-                    eeprom_read_block(Patable,patable_power_868,8);
+                    if (is_ook)
+                        eeprom_read_block(Patable,patable_power_868_ook,8);
+                    else
+                        eeprom_read_block(Patable,patable_power_868,8);
                     break;
         case 0x04:                                                          //915MHz
                     freq2=0x23;

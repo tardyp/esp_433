@@ -173,6 +173,7 @@ namespace cc1100
         uint8_t data_bit;
         uint8_t bit_to_write;
         uint32_t bit_to_write_number;
+        uint8_t last_data_bit;
 
         inline OOK_PWM(String name)
         {
@@ -210,6 +211,7 @@ namespace cc1100
         data_bit = 0;
         bit_to_write = 0;
         bit_to_write_number = 0;
+        last_data_bit = 0;
         state = STARTING;
     }
     bool OOK_PWM::compute_next_bit(void)
@@ -219,7 +221,7 @@ namespace cc1100
             /* data is encoded as hex nibbles */
             if (data_index >= _data.length())
                 return false;
-            u_int8_t v = _data.charAt(data_index);
+            uint8_t v = _data.charAt(data_index);
             if (v == ':')
             {
                 bit_to_write = 0;
@@ -229,6 +231,7 @@ namespace cc1100
             }
             v = hex2i(v);
             v = (v >> (3 - data_bit)) & 1;
+            last_data_bit = v;
             bit_to_write = 1;
             bit_to_write_number = v ? short_bit : long_bit;
             data_bit += 1;
@@ -241,7 +244,7 @@ namespace cc1100
         else
         {
             bit_to_write = 0;
-            bit_to_write_number = short_bit;
+            bit_to_write_number = last_data_bit ? long_bit : short_bit;
         }
         return true;
     }
@@ -283,7 +286,7 @@ namespace cc1100
                 /* CC1101 transmits MSB first */
                 if (bit_to_write)
                 {
-                    u_int8_t mask = 0xff << (8 - bit_to_write_number);
+                    uint8_t mask = 0xff << (8 - bit_to_write_number);
                     *buffer |= mask >> bit;
                 }
                 bit += bit_to_write_number;
@@ -292,7 +295,6 @@ namespace cc1100
             if (bit_to_write_number == 0)
                 if (!compute_next_bit())
                     break;
-                printf("bit_to_write_number: %d bit_to_write %d\n", bit_to_write_number, bit_to_write);
         }
         return written;
     }

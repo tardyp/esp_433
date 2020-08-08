@@ -211,7 +211,7 @@ class CC1100
 
         void set_myaddr(uint8_t addr);
         void set_channel(uint8_t channel);
-        void set_ISM(uint8_t ism_freq);
+        void set_ISM(uint8_t ism_freq, uint8_t is_ook=0);
         void set_mode(uint8_t mode);
         void set_output_power_level(int8_t dbm);
         void set_patable(uint8_t *patable_arr);
